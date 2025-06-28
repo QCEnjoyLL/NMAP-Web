@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  nmap-web:
+    build: .
+    container_name: nmap-online
+    ports:
+      - "8080:5000"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 1G
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GUNICORN_WORKERS=2
+      - GUNICORN_THREADS=4
+    volumes:
+      - ./app:/app/app
+

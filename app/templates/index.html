@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线Nmap端口扫描</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="container">
+            <header>
+                <div class="logo-area">
+                    <i class="fas fa-network-wired logo-icon"></i>
+                    <h1>在线Nmap端口扫描</h1>
+                </div>
+                <p class="subtitle">安全、高效、专业的网络扫描服务</p>
+            </header>
+
+            <div class="card scan-form-card">
+                <div class="card-header">
+                    <i class="fas fa-search"></i> 扫描设置
+                </div>
+                <div class="card-body">
+                    <form id="scanForm">
+                        <div class="form-group">
+                            <label for="target">
+                                <i class="fas fa-crosshairs"></i> 目标
+                            </label>
+                            <div class="input-wrapper">
+                                <input type="text" id="target" name="target" placeholder="IP地址、域名或IP段" required>
+                                <div class="input-hint">支持单个IP、域名、CIDR格式的网段</div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ports">
+                                <i class="fas fa-plug"></i> 端口
+                            </label>
+                            <div class="input-wrapper">
+                                <input type="text" id="ports" name="ports" placeholder="例如: 80,443 或 1-1000">
+                                <div class="input-hint">指定端口或端口范围，留空则使用默认端口</div>
+                                
+                                <div class="port-option">
+                                    <input type="checkbox" id="scanAllPorts" name="scanAllPorts">
+                                    <label for="scanAllPorts">
+                                        <i class="fas fa-exclamation-triangle"></i> 扫描全部端口 (1-65535)
+                                    </label>
+                                    <div class="option-hint">全端口扫描耗时较长，请耐心等待</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="parallelTasks">
+                                <i class="fas fa-microchip"></i> 线程数
+                            </label>
+                            <div class="threads-container">
+                                <div class="threads-slider-container">
+                                    <input type="range" id="parallelTasksSlider" name="parallelTasksSlider" min="4" max="16" value="8">
+                                    <div class="threads-display">
+                                        <input type="number" id="parallelTasks" name="parallelTasks" min="4" max="16" value="8">
+                                        <span>线程</span>
+                                    </div>
+                                </div>
+                                <div class="input-hint threads-hint">
+                                    <i class="fas fa-info-circle"></i> 更多线程可以加快扫描速度，但会消耗更多系统资源
+                                </div>
+                                <div class="threads-modes">
+                                    <div class="thread-mode" data-value="4">
+                                        <div class="mode-icon"><i class="fas fa-balance-scale"></i></div>
+                                        <div class="mode-label">标准</div>
+                                    </div>
+                                    <div class="thread-mode" data-value="8">
+                                        <div class="mode-icon"><i class="fas fa-tachometer-alt"></i></div>
+                                        <div class="mode-label">快速</div>
+                                    </div>
+                                    <div class="thread-mode" data-value="12">
+                                        <div class="mode-icon"><i class="fas fa-bolt"></i></div>
+                                        <div class="mode-label">高速</div>
+                                    </div>
+                                    <div class="thread-mode" data-value="16">
+                                        <div class="mode-icon"><i class="fas fa-rocket"></i></div>
+                                        <div class="mode-label">极速</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-sliders-h"></i> 扫描类型
+                            </label>
+                            <div class="options-container">
+                                <div class="option-item">
+                                    <input type="radio" id="-sS" name="scan_type" value="-sS" checked>
+                                    <label for="-sS">
+                                        <span class="option-code">-sS</span>
+                                        <span class="option-desc">SYN扫描</span>
+                                        <span class="option-detail">半开放扫描，速度快</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-sT" name="scan_type" value="-sT">
+                                    <label for="-sT">
+                                        <span class="option-code">-sT</span>
+                                        <span class="option-desc">TCP连接扫描</span>
+                                        <span class="option-detail">完全建立连接</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-sU" name="scan_type" value="-sU">
+                                    <label for="-sU">
+                                        <span class="option-code">-sU</span>
+                                        <span class="option-desc">UDP扫描</span>
+                                        <span class="option-detail">检测UDP服务</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-sV" name="scan_type" value="-sV">
+                                    <label for="-sV">
+                                        <span class="option-code">-sV</span>
+                                        <span class="option-desc">服务版本检测</span>
+                                        <span class="option-detail">识别服务信息</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-O" name="scan_type" value="-O">
+                                    <label for="-O">
+                                        <span class="option-code">-O</span>
+                                        <span class="option-desc">操作系统检测</span>
+                                        <span class="option-detail">识别系统类型</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-A" name="scan_type" value="-A">
+                                    <label for="-A">
+                                        <span class="option-code">-A</span>
+                                        <span class="option-desc">综合扫描</span>
+                                        <span class="option-detail">多种检测方式</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-tachometer-alt"></i> 扫描速度
+                            </label>
+                            <div class="options-container speed-options">
+                                <div class="option-item">
+                                    <input type="radio" id="-T0" name="scan_speed" value="-T0">
+                                    <label for="-T0">
+                                        <span class="option-code">-T0</span>
+                                        <span class="option-desc">偷偷摸摸</span>
+                                        <span class="option-detail">高度隐蔽</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-T1" name="scan_speed" value="-T1">
+                                    <label for="-T1">
+                                        <span class="option-code">-T1</span>
+                                        <span class="option-desc">鬼鬼祟祟</span>
+                                        <span class="option-detail">较为隐蔽</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-T2" name="scan_speed" value="-T2">
+                                    <label for="-T2">
+                                        <span class="option-code">-T2</span>
+                                        <span class="option-desc">文明礼貌</span>
+                                        <span class="option-detail">低资源占用</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-T3" name="scan_speed" value="-T3" checked>
+                                    <label for="-T3">
+                                        <span class="option-code">-T3</span>
+                                        <span class="option-desc">正常</span>
+                                        <span class="option-detail">默认速度</span>
+                                    </label>
+                                </div>
+                                <div class="option-item">
+                                    <input type="radio" id="-T4" name="scan_speed" value="-T4">
+                                    <label for="-T4">
+                                        <span class="option-code">-T4</span>
+                                        <span class="option-desc">激进</span>
+                                        <span class="option-detail">快速扫描</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" id="scanButton" class="btn primary-btn">
+                                <i class="fas fa-play"></i> 开始扫描
+                            </button>
+                            <button type="button" id="clearButton" class="btn secondary-btn">
+                                <i class="fas fa-broom"></i> 清除结果
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="results-container" id="resultsContainer">
+                <div class="loading" id="loading" style="display: none;">
+                    <div class="spinner-container">
+                        <div class="spinner"></div>
+                    </div>
+                    <h3><i class="fas fa-hourglass-half"></i> 正在扫描中</h3>
+                    <div class="thread-count-display">
+                        <i class="fas fa-microchip"></i> <span id="threadsInUse">8</span> 个线程正在工作中
+                    </div>
+                    <p>请耐心等待扫描完成...</p>
+                    <p class="scan-warning" id="scanWarning" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i> 全端口扫描可能需要较长时间，请耐心等待
+                    </p>
+                    
+                    <div class="tasks-overview" id="tasksOverview">
+                        <h4><i class="fas fa-tasks"></i> 子任务状态</h4>
+                        <div class="tasks-grid" id="tasksGrid"></div>
+                    </div>
+                    
+                </div>
+                
+                <div class="card results-card" id="results" style="display: none;">
+                    <div class="card-header">
+                        <i class="fas fa-clipboard-list"></i> 扫描结果
+                    </div>
+                    <div class="card-body">
+                        <div class="results-content">
+                            <pre id="resultsContent"></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card error-card" id="error" style="display: none;">
+                    <div class="card-header">
+                        <i class="fas fa-exclamation-triangle"></i> 扫描错误
+                    </div>
+                    <div class="card-body">
+                        <p id="errorMessage"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <footer>
+                <div class="footer-content">
+                    <p><i class="fas fa-shield-alt"></i> 免责声明: 本工具仅用于授权的安全测试。未经授权的网络扫描可能违反相关法律法规。</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <div id="socketStatus" class="socket-status"></div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html> 
