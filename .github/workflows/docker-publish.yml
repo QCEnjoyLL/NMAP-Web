@@ -51,6 +51,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/nmap-web # <-- ！！！重要：替换为你的镜像名
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            # 增加一个固定的 'latest' 标签
+            type=raw,value=latest,enable=true
 
       # 6. 构建并推送到 Docker Hub
       # 这是核心步骤，它会执行构建并上传
